@@ -42,33 +42,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: string; badge?: number }[] 
   { id: "settings", label: "Настройки", icon: "Settings" },
 ];
 
-const DEMO_USERS = Array.from({ length: 40 }, (_, i) => ({
-  id: i + 1,
-  name: ["Иван Петров", "Мария Иванова", "Алексей Сидоров", "Елена Козлова", "Дмитрий Новиков", "Ольга Морозова", "Сергей Волков", "Анна Попова"][i % 8],
-  email: `user${i + 1}@company.ru`,
-  role: ["Администратор", "Менеджер", "Оператор", "Аналитик"][i % 4],
-  status: ["Активен", "Активен", "Активен", "Неактивен"][i % 4],
-  dept: ["Продажи", "Маркетинг", "IT", "Финансы", "Логистика"][i % 5],
-  lastSeen: `${Math.floor(Math.random() * 60) + 1} мин. назад`,
-  created: `${String(Math.floor(Math.random() * 28) + 1).padStart(2, "0")}.${String(Math.floor(Math.random() * 12) + 1).padStart(2, "0")}.2024`,
-}));
 
-const DEMO_TABLES = Array.from({ length: 12 }, (_, i) => ({
-  id: i + 1,
-  name: ["orders", "customers", "products", "invoices", "payments", "shipments", "categories", "suppliers", "warehouse", "employees", "contracts", "tasks"][i],
-  rows: [12045, 4891, 2340, 8762, 15390, 6120, 89, 234, 1560, 148, 430, 2890][i],
-  size: ["24.3 MB", "8.1 MB", "3.9 MB", "18.6 MB", "31.2 MB", "12.4 MB", "0.1 MB", "0.4 MB", "2.6 MB", "0.3 MB", "0.7 MB", "4.8 MB"][i],
-  updated: `${[2, 5, 8, 1, 15, 3, 44, 22, 7, 60, 11, 30][i]} мин. назад`,
-  status: ["Ок", "Ок", "Ок", "Ок", "Ок", "Ок", "Ок", "Ок", "Предупреждение", "Ок", "Ок", "Ошибка"][i],
-}));
-
-const DEMO_REPORTS = [
-  { id: 1, name: "Продажи за квартал", type: "Финансовый", rows: 4520, updated: "Сегодня 09:14", status: "Готов" },
-  { id: 2, name: "KPI сотрудников", type: "HR", rows: 148, updated: "Сегодня 08:30", status: "Готов" },
-  { id: 3, name: "Складские остатки", type: "Логистика", rows: 8900, updated: "Вчера 18:45", status: "Устарел" },
-  { id: 4, name: "Дебиторская задолженность", type: "Финансовый", rows: 234, updated: "Сегодня 11:02", status: "Готов" },
-  { id: 5, name: "Воронка продаж", type: "Маркетинг", rows: 890, updated: "В процессе...", status: "Генерация" },
-];
 
 type FilterOperator = "содержит" | "равно" | "начинается с" | "не равно" | "пусто" | "не пусто";
 interface FilterRule {
@@ -617,7 +591,7 @@ export default function App() {
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background" style={{width: "100%"}}>
       <aside className={`flex flex-col border-r border-border bg-[hsl(var(--sidebar-background))] transition-all duration-200 flex-shrink-0 ${collapsed ? "w-12" : "w-48"}`}>
         <div className="flex items-center gap-2.5 px-3 py-3.5 border-b border-[hsl(var(--sidebar-border))]">
           <div className="w-6 h-6 rounded-sm bg-primary flex items-center justify-center flex-shrink-0">
