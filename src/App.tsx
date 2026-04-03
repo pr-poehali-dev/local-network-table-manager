@@ -269,7 +269,7 @@ function TablesSection() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: rawData, loading, error } = useApiData<Record<string, unknown>>("tables", debouncedSearch);
+  const { data: rawData, loading } = useApiData<Record<string, unknown>>("tables", debouncedSearch);
 
   const sorted = useMemo(() => {
     const filtered = applyFilterRules(rawData, "", filters);
@@ -291,7 +291,7 @@ function TablesSection() {
     <div className="flex flex-col h-full animate-fade-in">
       <TopBar
         title="Таблицы"
-        subtitle={loading ? "Загрузка..." : `${sorted.length} таблиц${error === "demo" ? " · демо-данные" : ""}`}
+        subtitle={loading ? "Загрузка..." : `${sorted.length} таблиц`}
         actions={
           <>
             <SearchInput value={search} onChange={setSearch} placeholder="Поиск по таблицам..." />
