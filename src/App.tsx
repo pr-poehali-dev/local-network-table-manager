@@ -58,13 +58,13 @@ function useApiData<T>(resource: string, search: string) {
 
 type Section = "tables" | "users" | "print" | "export" | "import" | "reports" | "forms" | "settings";
 
-const NAV_ITEMS: { id: Section; label: string; icon: string; badge?: number }[] = [
-  { id: "tables", label: "Таблицы", icon: "Table2", badge: 3 },
-  { id: "users", label: "Пользователи", icon: "Users", badge: 148 },
+const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
+  { id: "tables", label: "Таблицы", icon: "Table2" },
+  { id: "users", label: "Пользователи", icon: "Users" },
   { id: "print", label: "Печать", icon: "Printer" },
   { id: "export", label: "Экспорт", icon: "Download" },
   { id: "import", label: "Импорт", icon: "Upload" },
-  { id: "reports", label: "Отчёты", icon: "BarChart3", badge: 5 },
+  { id: "reports", label: "Отчёты", icon: "BarChart3" },
   { id: "forms", label: "Формы", icon: "FileText" },
   { id: "settings", label: "Настройки", icon: "Settings" },
 ];
@@ -600,16 +600,18 @@ export default function App() {
   const [section, setSection] = useState<Section>("tables");
   const [collapsed, setCollapsed] = useState(false);
 
-  const sectionMap: Record<Section, React.ReactNode> = {
-    tables: <TablesSection />,
-    users: <UsersSection />,
-    reports: <ReportsSection />,
-    print: <StubSection title="Печать" icon="Printer" description="Настройте шаблоны печати документов" />,
-    export: <StubSection title="Экспорт" icon="Download" description="Экспорт данных в XLSX, CSV, JSON, PDF" />,
-    import: <StubSection title="Импорт" icon="Upload" description="Загрузка данных из файлов и внешних источников" />,
-    forms: <StubSection title="Формы" icon="FileText" description="Конструктор форм для ввода данных" />,
-    settings: <SettingsSection />,
-  };
+  function renderSection() {
+    switch (section) {
+      case "tables": return <TablesSection />;
+      case "users": return <UsersSection />;
+      case "reports": return <ReportsSection />;
+      case "settings": return <SettingsSection />;
+      case "print": return <StubSection title="Печать" icon="Printer" description="Настройте шаблоны печати документов" />;
+      case "export": return <StubSection title="Экспорт" icon="Download" description="Экспорт данных в XLSX, CSV, JSON, PDF" />;
+      case "import": return <StubSection title="Импорт" icon="Upload" description="Загрузка данных из файлов и внешних источников" />;
+      case "forms": return <StubSection title="Формы" icon="FileText" description="Конструктор форм для ввода данных" />;
+    }
+  }
 
   const stats = [
     { label: "Таблиц", value: "12" },
@@ -643,14 +645,7 @@ export default function App() {
             >
               <Icon name={item.icon as never} size={15} className="flex-shrink-0" />
               {!collapsed && (
-                <>
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.badge !== undefined && (
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-sm ${section === item.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </>
+                <span className="flex-1 text-left">{item.label}</span>
               )}
             </button>
           ))}
@@ -693,7 +688,7 @@ export default function App() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {sectionMap[section]}
+          {renderSection()}
         </div>
       </main>
     </div>
