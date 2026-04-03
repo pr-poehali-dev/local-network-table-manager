@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get data tables",
+      "method": "GET",
+      "path": "/?resource=tables",
+      "expectedStatus": 200,
+      "expectedBody": {"total": 12},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get users",
+      "method": "GET",
+      "path": "/?resource=users",
+      "expectedStatus": 200,
+      "expectedBody": {"total": 12},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get reports",
+      "method": "GET",
+      "path": "/?resource=reports",
+      "expectedStatus": 200,
+      "expectedBody": {"total": 5},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

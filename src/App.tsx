@@ -1,5 +1,33 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
+
+const API_URL = "https://functions.poehali.dev/3f7267f9-a3d7-4dee-ae15-7f48c8816417";
+
+function useApiData<T>(resource: string, search: string) {
+  const [data, setData] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ resource });
+      if (search) params.set("search", search);
+      const res = await fetch(`${API_URL}?${params}`);
+      const json = await res.json();
+      setData(json.data ?? []);
+    } catch {
+      setError("Ошибка загрузки данных");
+    } finally {
+      setLoading(false);
+    }
+  }, [resource, search]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { data, loading, error, reload: load };
+}
 
 type Section = "tables" | "users" | "print" | "export" | "import" | "reports" | "forms" | "settings";
 
@@ -212,23 +240,44 @@ function SortIcon({ col, sortCol, sortDir }: { col: string; sortCol: string; sor
   return <Icon name={sortDir === "asc" ? "ChevronUp" : "ChevronDown"} size={11} className="text-primary" />;
 }
 
+function LoadingRows({ cols }: { cols: number }) {
+  return (
+    <>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <tr key={i}>
+          {Array.from({ length: cols }).map((_, j) => (
+            <td key={j}><div className="h-3 bg-muted rounded-sm animate-pulse w-3/4" /></td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
 function TablesSection() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterRule[]>([]);
   const [sortCol, setSortCol] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const fields = ["name", "rows", "size", "status", "updated"];
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: rawData, loading } = useApiData<Record<string, unknown>>("tables", debouncedSearch);
+
   const sorted = useMemo(() => {
-    const filtered = applyFilterRules(DEMO_TABLES as unknown as Record<string, unknown>[], search, filters) as typeof DEMO_TABLES;
+    const filtered = applyFilterRules(rawData, "", filters);
     return [...filtered].sort((a, b) => {
-      const av = (a as Record<string, unknown>)[sortCol];
-      const bv = (b as Record<string, unknown>)[sortCol];
+      const av = a[sortCol]; const bv = b[sortCol];
       const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv), "ru");
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [search, filters, sortCol, sortDir]);
+  }, [rawData, filters, sortCol, sortDir]);
 
   function toggleSort(col: string) {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -241,7 +290,7 @@ function TablesSection() {
     <div className="flex flex-col h-full animate-fade-in">
       <TopBar
         title="Таблицы"
-        subtitle={`${sorted.length} из ${DEMO_TABLES.length} таблиц`}
+        subtitle={loading ? "Загрузка..." : `${sorted.length} таблиц`}
         actions={
           <>
             <SearchInput value={search} onChange={setSearch} placeholder="Поиск по таблицам..." />
@@ -267,13 +316,13 @@ function TablesSection() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map(row => (
-              <tr key={row.id}>
-                <td><span className="font-mono text-primary">{row.name}</span></td>
-                <td><span className="font-mono text-muted-foreground">{row.rows.toLocaleString("ru")}</span></td>
-                <td><span className="font-mono text-muted-foreground">{row.size}</span></td>
-                <td className="text-muted-foreground">{row.updated}</td>
-                <td><StatusBadge status={row.status} /></td>
+            {loading ? <LoadingRows cols={6} /> : sorted.map(row => (
+              <tr key={String(row.id)}>
+                <td><span className="font-mono text-primary">{String(row.name)}</span></td>
+                <td><span className="font-mono text-muted-foreground">{Number(row.rows).toLocaleString("ru")}</span></td>
+                <td><span className="font-mono text-muted-foreground">{String(row.size)}</span></td>
+                <td className="text-muted-foreground">{String(row.updated)}</td>
+                <td><StatusBadge status={String(row.status)} /></td>
                 <td>
                   <div className="flex items-center gap-1">
                     <Btn variant="ghost" size="xs"><Icon name="Eye" size={11} />Просмотр</Btn>
@@ -284,7 +333,7 @@ function TablesSection() {
             ))}
           </tbody>
         </table>
-        {sorted.length === 0 && (
+        {!loading && sorted.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <Icon name="SearchX" size={32} className="mb-3 opacity-40" />
             <p className="text-[13px]">Ничего не найдено</p>
@@ -297,38 +346,45 @@ function TablesSection() {
 
 function UsersSection() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterRule[]>([]);
   const [sortCol, setSortCol] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [roleFilter, setRoleFilter] = useState("Все");
   const roles = ["Все", "Администратор", "Менеджер", "Оператор", "Аналитик"];
-  const fields = ["name", "email", "role", "status", "dept", "lastSeen"];
+  const fields = ["name", "email", "role", "status", "dept", "last_seen"];
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: rawData, loading } = useApiData<Record<string, unknown>>("users", debouncedSearch);
 
   const sorted = useMemo(() => {
-    const base = roleFilter === "Все" ? DEMO_USERS : DEMO_USERS.filter(u => u.role === roleFilter);
-    const filtered = applyFilterRules(base as unknown as Record<string, unknown>[], search, filters) as typeof DEMO_USERS;
+    const base = roleFilter === "Все" ? rawData : rawData.filter(u => u.role === roleFilter);
+    const filtered = applyFilterRules(base, "", filters);
     return [...filtered].sort((a, b) => {
-      const av = (a as Record<string, unknown>)[sortCol];
-      const bv = (b as Record<string, unknown>)[sortCol];
+      const av = a[sortCol]; const bv = b[sortCol];
       const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv), "ru");
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [search, filters, sortCol, sortDir, roleFilter]);
+  }, [rawData, filters, sortCol, sortDir, roleFilter]);
 
   function toggleSort(col: string) {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortCol(col); setSortDir("asc"); }
   }
 
-  const userCols: [string, string][] = [["name", "Имя"], ["email", "Email"], ["role", "Роль"], ["dept", "Отдел"], ["status", "Статус"], ["lastSeen", "Последний вход"]];
+  const userCols: [string, string][] = [["name", "Имя"], ["email", "Email"], ["role", "Роль"], ["dept", "Отдел"], ["status", "Статус"], ["last_seen", "Последний вход"]];
   const active = sorted.filter(u => u.status === "Активен").length;
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
       <TopBar
         title="Пользователи"
-        subtitle={`${sorted.length} пользователей · ${active} активных`}
+        subtitle={loading ? "Загрузка..." : `${sorted.length} пользователей · ${active} активных`}
         actions={
           <>
             <SearchInput value={search} onChange={setSearch} placeholder="Поиск пользователя..." />
@@ -367,15 +423,15 @@ function UsersSection() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map(user => (
-              <tr key={user.id}>
-                <td className="text-muted-foreground font-mono text-[11px]">{user.id}</td>
-                <td className="font-medium">{user.name}</td>
-                <td className="text-muted-foreground font-mono text-[12px]">{user.email}</td>
-                <td><span className="bg-secondary text-secondary-foreground badge-status">{user.role}</span></td>
-                <td className="text-muted-foreground">{user.dept}</td>
-                <td><StatusBadge status={user.status} /></td>
-                <td className="text-muted-foreground text-[12px]">{user.lastSeen}</td>
+            {loading ? <LoadingRows cols={8} /> : sorted.map(user => (
+              <tr key={String(user.id)}>
+                <td className="text-muted-foreground font-mono text-[11px]">{String(user.id)}</td>
+                <td className="font-medium">{String(user.name)}</td>
+                <td className="text-muted-foreground font-mono text-[12px]">{String(user.email)}</td>
+                <td><span className="bg-secondary text-secondary-foreground badge-status">{String(user.role)}</span></td>
+                <td className="text-muted-foreground">{String(user.dept)}</td>
+                <td><StatusBadge status={String(user.status)} /></td>
+                <td className="text-muted-foreground text-[12px]">{String(user.last_seen)}</td>
                 <td>
                   <div className="flex items-center gap-1">
                     <Btn variant="ghost" size="xs"><Icon name="Pencil" size={11} /></Btn>
@@ -386,7 +442,7 @@ function UsersSection() {
             ))}
           </tbody>
         </table>
-        {sorted.length === 0 && (
+        {!loading && sorted.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <Icon name="UserX" size={32} className="mb-3 opacity-40" />
             <p>Пользователи не найдены</p>
@@ -399,20 +455,28 @@ function UsersSection() {
 
 function ReportsSection() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterRule[]>([]);
   const fields = ["name", "type", "status"];
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data: rawData, loading } = useApiData<Record<string, unknown>>("reports", debouncedSearch);
+
   const filtered = useMemo(() =>
-    applyFilterRules(DEMO_REPORTS as unknown as Record<string, unknown>[], search, filters) as typeof DEMO_REPORTS,
-    [search, filters]
+    applyFilterRules(rawData, "", filters),
+    [rawData, filters]
   );
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
       <TopBar
         title="Отчёты"
-        subtitle={`${filtered.length} отчётов`}
+        subtitle={loading ? "Загрузка..." : `${filtered.length} отчётов`}
         actions={
           <>
             <SearchInput value={search} onChange={setSearch} placeholder="Поиск отчёта..." />
@@ -439,13 +503,13 @@ function ReportsSection() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(r => (
-              <tr key={r.id}>
-                <td className="font-medium">{r.name}</td>
-                <td><span className="bg-secondary text-secondary-foreground badge-status">{r.type}</span></td>
-                <td className="font-mono text-muted-foreground">{r.rows.toLocaleString("ru")}</td>
-                <td className="text-muted-foreground">{r.updated}</td>
-                <td><StatusBadge status={r.status} /></td>
+            {loading ? <LoadingRows cols={6} /> : filtered.map(r => (
+              <tr key={String(r.id)}>
+                <td className="font-medium">{String(r.name)}</td>
+                <td><span className="bg-secondary text-secondary-foreground badge-status">{String(r.type)}</span></td>
+                <td className="font-mono text-muted-foreground">{Number(r.rows).toLocaleString("ru")}</td>
+                <td className="text-muted-foreground">{String(r.updated)}</td>
+                <td><StatusBadge status={String(r.status)} /></td>
                 <td>
                   <div className="flex items-center gap-1">
                     <Btn variant="ghost" size="xs"><Icon name="Eye" size={11} />Открыть</Btn>
