@@ -269,7 +269,7 @@ function TablesSection() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: rawData, loading } = useApiData<Record<string, unknown>>("tables", debouncedSearch);
+  const { data: rawData, loading, error } = useApiData<Record<string, unknown>>("tables", debouncedSearch);
 
   const sorted = useMemo(() => {
     const filtered = applyFilterRules(rawData, "", filters);
