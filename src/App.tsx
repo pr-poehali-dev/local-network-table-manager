@@ -3,6 +3,31 @@ import Icon from "@/components/ui/icon";
 
 const API_URL = "https://functions.poehali.dev/3f7267f9-a3d7-4dee-ae15-7f48c8816417";
 
+const FALLBACK: Record<string, Record<string, unknown>[]> = {
+  tables: [
+    { id: 1, name: "orders", rows: 12045, size: "24.3 MB", status: "Ок", updated: "2 мин. назад" },
+    { id: 2, name: "customers", rows: 4891, size: "8.1 MB", status: "Ок", updated: "5 мин. назад" },
+    { id: 3, name: "products", rows: 2340, size: "3.9 MB", status: "Ок", updated: "8 мин. назад" },
+    { id: 4, name: "invoices", rows: 8762, size: "18.6 MB", status: "Ок", updated: "1 мин. назад" },
+    { id: 5, name: "payments", rows: 15390, size: "31.2 MB", status: "Ок", updated: "15 мин. назад" },
+    { id: 6, name: "warehouse", rows: 1560, size: "2.6 MB", status: "Предупреждение", updated: "7 мин. назад" },
+    { id: 7, name: "tasks", rows: 2890, size: "4.8 MB", status: "Ошибка", updated: "30 мин. назад" },
+  ],
+  users: [
+    { id: 1, name: "Иван Петров", email: "i.petrov@company.ru", role: "Администратор", status: "Активен", dept: "IT", last_seen: "5 мин. назад" },
+    { id: 2, name: "Мария Иванова", email: "maria.ivanova@company.ru", role: "Менеджер", status: "Активен", dept: "Продажи", last_seen: "12 мин. назад" },
+    { id: 3, name: "Алексей Сидоров", email: "a.sidorov@company.ru", role: "Оператор", status: "Активен", dept: "Логистика", last_seen: "1 ч. назад" },
+    { id: 4, name: "Елена Козлова", email: "e.kozlova@company.ru", role: "Аналитик", status: "Неактивен", dept: "Финансы", last_seen: "3 дня назад" },
+    { id: 5, name: "Дмитрий Новиков", email: "d.novikov@company.ru", role: "Менеджер", status: "Активен", dept: "Маркетинг", last_seen: "20 мин. назад" },
+  ],
+  reports: [
+    { id: 1, name: "Продажи за квартал", type: "Финансовый", rows: 4520, status: "Готов", updated: "Сегодня 09:14" },
+    { id: 2, name: "KPI сотрудников", type: "HR", rows: 148, status: "Готов", updated: "Сегодня 08:30" },
+    { id: 3, name: "Складские остатки", type: "Логистика", rows: 8900, status: "Устарел", updated: "Вчера 18:45" },
+    { id: 4, name: "Воронка продаж", type: "Маркетинг", rows: 890, status: "Генерация", updated: "В процессе..." },
+  ],
+};
+
 function useApiData<T>(resource: string, search: string) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,10 +40,12 @@ function useApiData<T>(resource: string, search: string) {
       const params = new URLSearchParams({ resource });
       if (search) params.set("search", search);
       const res = await fetch(`${API_URL}?${params}`);
+      if (!res.ok) throw new Error("bad status");
       const json = await res.json();
       setData(json.data ?? []);
     } catch {
-      setError("Ошибка загрузки данных");
+      setData((FALLBACK[resource] ?? []) as T[]);
+      setError("demo");
     } finally {
       setLoading(false);
     }
@@ -264,7 +291,7 @@ function TablesSection() {
     <div className="flex flex-col h-full animate-fade-in">
       <TopBar
         title="Таблицы"
-        subtitle={loading ? "Загрузка..." : `${sorted.length} таблиц`}
+        subtitle={loading ? "Загрузка..." : `${sorted.length} таблиц${error === "demo" ? " · демо-данные" : ""}`}
         actions={
           <>
             <SearchInput value={search} onChange={setSearch} placeholder="Поиск по таблицам..." />
