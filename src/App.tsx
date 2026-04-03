@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 
 const API_URL = "https://functions.poehali.dev/3f7267f9-a3d7-4dee-ae15-7f48c8816417";
+const USERS_API = "https://functions.poehali.dev/6fa44093-d74e-4c83-8f43-29f4e4135dc5";
 
 const FALLBACK: Record<string, Record<string, unknown>[]> = {
   tables: [
@@ -345,6 +346,143 @@ function TablesSection() {
   );
 }
 
+interface UserForm {
+  id?: number;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  dept: string;
+}
+
+const EMPTY_FORM: UserForm = { name: "", email: "", role: "Оператор", status: "Активен", dept: "" };
+
+function UserModal({ user, onClose, onSaved }: {
+  user: UserForm | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState<UserForm>(user ?? EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const isEdit = !!form.id;
+
+  async function handleSave() {
+    if (!form.name.trim() || !form.email.trim()) {
+      setError("Заполните имя и email");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(USERS_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error || "Ошибка сохранения"); return; }
+      onSaved();
+      onClose();
+    } catch {
+      setError("Ошибка сети");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const field = (label: string, key: keyof UserForm, type = "text") => (
+    <div>
+      <label className="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{label}</label>
+      <input
+        type={type}
+        value={String(form[key] ?? "")}
+        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+        className="w-full bg-muted border border-border rounded-sm px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+    </div>
+  );
+
+  const select = (label: string, key: keyof UserForm, opts: string[]) => (
+    <div>
+      <label className="block text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{label}</label>
+      <select
+        value={String(form[key] ?? "")}
+        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+        className="w-full bg-muted border border-border rounded-sm px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      >
+        {opts.map(o => <option key={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60" />
+      <div
+        className="relative bg-card border border-border rounded-sm shadow-2xl w-full max-w-md mx-4 animate-fade-in"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-[14px] font-semibold">{isEdit ? "Редактировать пользователя" : "Новый пользователь"}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <Icon name="X" size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {field("Имя", "name")}
+          {field("Email", "email", "email")}
+          <div className="grid grid-cols-2 gap-4">
+            {select("Роль", "role", ["Администратор", "Менеджер", "Оператор", "Аналитик"])}
+            {select("Статус", "status", ["Активен", "Неактивен"])}
+          </div>
+          {field("Отдел", "dept")}
+
+          {error && (
+            <div className="bg-red-950 border border-red-900 text-red-400 text-[12px] px-3 py-2 rounded-sm">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+          <Btn variant="outline" onClick={onClose}>Отмена</Btn>
+          <Btn variant="default" onClick={handleSave}>
+            {saving ? <Icon name="Loader" size={13} className="animate-spin" /> : <Icon name="Save" size={13} />}
+            {isEdit ? "Сохранить" : "Создать"}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({ message, onConfirm, onClose }: {
+  message: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="relative bg-card border border-border rounded-sm shadow-2xl w-full max-w-sm mx-4 animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="p-5">
+          <div className="flex items-start gap-3 mb-4">
+            <Icon name="AlertTriangle" size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[13px] text-foreground">{message}</p>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Btn variant="outline" onClick={onClose}>Отмена</Btn>
+            <Btn variant="danger" onClick={onConfirm}>Удалить</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UsersSection() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -353,6 +491,10 @@ function UsersSection() {
   const [sortCol, setSortCol] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [roleFilter, setRoleFilter] = useState("Все");
+  const [editUser, setEditUser] = useState<UserForm | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [version, setVersion] = useState(0);
   const roles = ["Все", "Администратор", "Менеджер", "Оператор", "Аналитик"];
   const fields = ["name", "email", "role", "status", "dept", "last_seen"];
 
@@ -361,7 +503,10 @@ function UsersSection() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: rawData, loading } = useApiData<Record<string, unknown>>("users", debouncedSearch);
+  const { data: rawData, loading, reload } = useApiData<Record<string, unknown>>("users", debouncedSearch);
+
+  // перезагрузка при изменении данных
+  useEffect(() => { if (version > 0) reload(); }, [version]);
 
   const sorted = useMemo(() => {
     const base = roleFilter === "Все" ? rawData : rawData.filter(u => u.role === roleFilter);
@@ -405,7 +550,9 @@ function UsersSection() {
               Фильтры
               {filters.length > 0 && <span className="ml-1">{filters.length}</span>}
             </Btn>
-            <Btn variant="default"><Icon name="UserPlus" size={13} />Добавить</Btn>
+            <Btn variant="default" onClick={() => { setEditUser(null); setShowModal(true); }}>
+              <Icon name="UserPlus" size={13} />Добавить
+            </Btn>
           </>
         }
       />
@@ -435,8 +582,20 @@ function UsersSection() {
                 <td className="text-muted-foreground text-[12px]">{String(user.last_seen)}</td>
                 <td>
                   <div className="flex items-center gap-1">
-                    <Btn variant="ghost" size="xs"><Icon name="Pencil" size={11} /></Btn>
-                    <Btn variant="danger" size="xs"><Icon name="Trash2" size={11} /></Btn>
+                    <Btn variant="ghost" size="xs" onClick={() => {
+                      setEditUser({
+                        id: Number(user.id),
+                        name: String(user.name),
+                        email: String(user.email),
+                        role: String(user.role),
+                        status: String(user.status),
+                        dept: String(user.dept ?? ""),
+                      });
+                      setShowModal(true);
+                    }}><Icon name="Pencil" size={11} /></Btn>
+                    <Btn variant="danger" size="xs" onClick={() => setDeleteId(Number(user.id))}>
+                      <Icon name="Trash2" size={11} />
+                    </Btn>
                   </div>
                 </td>
               </tr>
@@ -450,6 +609,26 @@ function UsersSection() {
           </div>
         )}
       </div>
+
+      {showModal && (
+        <UserModal
+          user={editUser}
+          onClose={() => setShowModal(false)}
+          onSaved={() => setVersion(v => v + 1)}
+        />
+      )}
+
+      {deleteId !== null && (
+        <ConfirmModal
+          message="Удалить пользователя? Это действие нельзя отменить."
+          onClose={() => setDeleteId(null)}
+          onConfirm={async () => {
+            await fetch(`${USERS_API}?id=${deleteId}`, { method: "DELETE" });
+            setDeleteId(null);
+            setVersion(v => v + 1);
+          }}
+        />
+      )}
     </div>
   );
 }

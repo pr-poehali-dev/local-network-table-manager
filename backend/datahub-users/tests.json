@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Create user",
+      "method": "POST",
+      "path": "/",
+      "body": {"name": "Тест Тестов", "email": "test_create_tmp@test.ru", "role": "Оператор", "status": "Активен", "dept": "IT"},
+      "expectedStatus": 200,
+      "expectedBody": {"action": "created"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
